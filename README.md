@@ -2,8 +2,51 @@
 
 Translated and converted to .md from [Xiaomi IoT Developer Platform](https://iot.mi.com/new/doc/embedded-development/wifi/module-dev/serial-communication)
 
-Serial command rules
---------------------
+## Serial command interaction
+Serial text commands are used to transfer commands between the hardware product MCU and the Xiaomi IoT module in the way of "repeat questions and answers". Regardless of whether the command is executed successfully or not, the corresponding result and error message will be returned:
+
+* ↑: Instruction, "uplink" information, refers to the hardware product sending instructions to the Xiaomi IoT platform through the Xiaomi IoT module, such as a sensor reporting the temperature attribute value to the Xiaomi IoT platform through the Xiaomi IoT module;
+* ↓: As a result, "downlink" information means that the Xiaomi IoT platform sends instructions to hardware products through the module. For example, the Xiaomi IoT platform sends instructions to the Xiaomi IoT module, and the Xiaomi IoT module receives the information and translates it into text instructions. After using the “get _ down” command to poll to obtain the text command and perform the corresponding operation, the MCU of the company calls the “result” response command to inform the small IoT meter module to complete the operation.
+
+### Precautions
+
+* All text commands, unless otherwise specified, use lowercase letters;
+* For each operation of the module, the MCU needs to use the corresponding serial port commands to communicate with the module through the serial port;
+* Serial command communication can transmit up to 512 bytes of data at a time, and the command carries no more than 64 parameters; but the MCU needs to support not less than 512 bytes of serial processing capabilities, and at the same time, for unrecognized commands, it needs to reply to errors;
+* It is recommended to use the "props" command to report the current attribute value when the detected attribute changes exceed a certain range, and high frequency reporting of normal attributes is not allowed;
+* When a set event (Event) occurs, the event is reported through the "event" command.
+
+The developer needs to send the "get _ down" command to the Xiaomi IoT module in a polling manner (the time range is 100~200ms, the recommended cycle period is 200ms) , and receive the Xiaomi IoT module from the Xiaomi IoT platform and translate it Instruction
+If the Xiaomi IoT module replies "down none", use the "get_down" command to poll the module, otherwise, it needs to immediately reply to the command according to the obtained command and execute the corresponding action;
+After the MCU completes the execution of the instruction, it needs to call the "result" instruction to send the instruction execution result to the module; if the instruction received by the MCU is not supported in the instruction list or executes incorrectly, it needs to call the "error" instruction to send it to the module Error code and error description. If the Xiaomi IoT module has received the error code and error description, it will reply "ok".
+
+## Command Flow
+
+>**illustrate**
+
+> The MCU of the hardware product and the Xiaomi IoT module use the serial port command to interact. The serial port command can transmit up to 512 bytes of data at a time, and the parameters carried by the command do not exceed 64 bytes. Therefore, it is recommended that the MCU of the developer's hardware product supports not Less than 512 bytes of serial port processing capacity;
+> Use attribute commands to report changed attributes. Do not report normal attributes with high frequency; when a set event (Event) occurs, developers can report the event through the event report command;
+> If the MCU of the developer's hardware product cannot recognize the commands issued by the Xiaomi IoT module, the MCU of the hardware product must reply to the Xiaomi IoT module with an error.
+
+### Property report
+
+"Property report" is a function used to report device status. In order to enable users to control hardware products through control terminals such as Mijia APP or Xiaoai Communication and realize functions such as "automation", developers must implement the "Attribute report" function, as follows Take "Temperature Sensor Reporting Temperature" as an example to introduce the process of implementing the attribute reporting function.
+
+1. The sensor detects that the current temperature is 26
+2. The sensor calls the attribute report command of the MIIO module, and reports the temperature attribute value to the cloud through the MIIO module
+3. The MIIO chip replied "ok", notifying that the result has been received, and reporting the response to the cloud
+
+### Order issuance
+
+"Instruction issuance" is a function used to issue device control instructions. In order to enable the device to be controlled by users, developers must implement the "Instruction Issuance" function. The following takes "Issuing and Turning on the Power Switch" as an example to introduce the implementation instructions The process of delivering functions.
+
+1. The MIIO chip receives the downlink message of the app and translates it into a text command;
+2. The main control MCU continuously polled the MIIO chip with the "get_down" command, and got the text command;
+3. The master MCU completes the power-on operation
+4. The master control MCU calls the "result" response command to inform the MIIO chip to complete successfully
+5. The MIIO chip replied "ok", notifying that the result has been received, and reporting the response to the cloud
+
+## Serial command rules
 
 When developers develop product firmware functions on the hardware product MCU, they need to design instructions according to the following rules:
 
